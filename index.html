@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Affordable Modular Buildings · SE QLD Delivery Zones</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#06080a;
+    --panel:rgba(12,15,18,.94);
+    --panel-solid:#0c0f12;
+    --amb-green:#7CC142;
+    --amb-green-light:#9BD862;
+    --amb-green-deep:#5FA32F;
+    --amb-grey:#9A9A9A;
+    --amb-grey-deep:#3D3D3D;
+    --accent-glow:rgba(124,193,66,.55);
+    --text:#f3f5f8;
+    --muted:#8b95a1;
+    --line:rgba(255,255,255,.08);
+    --b50:#7CC142;
+    --b100:#F2C249;
+    --b150:#F08A2E;
+    --b200:#DB4C3F;
+    --b250:#A8B5C0;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);
+    font-family:"IBM Plex Sans",system-ui,sans-serif;color:var(--text);
+    -webkit-font-smoothing:antialiased;}
+  #map{position:absolute;inset:0;background:#06080a;z-index:1;}
+
+  .topbar{
+    position:absolute;top:0;left:0;right:0;z-index:1000;
+    display:flex;align-items:center;gap:14px;
+    padding:13px 20px;
+    background:linear-gradient(180deg,rgba(4,6,8,.97) 0%,rgba(4,6,8,.78) 70%,rgba(4,6,8,0) 100%);
+    pointer-events:none;
+  }
+  .brandmark{
+    width:46px;height:46px;flex:0 0 auto;pointer-events:auto;
+    filter:drop-shadow(0 6px 18px rgba(124,193,66,.28));
+  }
+  .titlewrap h1{
+    font-family:"Oswald",sans-serif;font-weight:700;letter-spacing:.12em;
+    font-size:19px;text-transform:uppercase;line-height:1;
+  }
+  .titlewrap h1 .grn{color:var(--amb-green)}
+  .titlewrap h1 .gry{color:var(--amb-grey)}
+  .titlewrap p{
+    font-size:11.5px;color:var(--muted);letter-spacing:.05em;margin-top:5px;
+    font-weight:500;text-transform:uppercase;
+  }
+
+  .freight-dock{
+    position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:980;
+    width:min(440px,calc(100vw - 92px));pointer-events:none;
+  }
+  .freight-shell{
+    pointer-events:auto;
+    background:rgba(10,13,16,.9);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,.1);
+    border-radius:16px;
+    box-shadow:0 18px 44px rgba(0,0,0,.46), inset 0 1px 0 rgba(255,255,255,.05);
+    padding:7px;
+  }
+  .freight-head{display:none;}
+  .freight-head .fh-left small{
+    display:block;font-family:"Oswald";font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--amb-green);
+  }
+  .freight-head .fh-left strong{
+    display:block;font-family:"Oswald";font-size:16px;letter-spacing:.05em;text-transform:uppercase;font-weight:600;margin-top:2px;
+  }
+  .freight-head .fh-right{
+    color:var(--muted);font-size:11px;line-height:1.35;text-align:right;max-width:280px;
+  }
+  .freight-selector{
+    display:grid;grid-template-columns:1fr 1fr;gap:7px;
+  }
+  .freight-option{
+    appearance:none;border:1px solid rgba(255,255,255,.08);border-radius:12px;
+    padding:8px 9px;background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.02));
+    color:#dfe5eb;cursor:pointer;text-align:left;transition:.18s ease;position:relative;overflow:hidden;
+    min-height:54px;
+  }
+  .freight-option:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.16);background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.03));}
+  .freight-option.active{
+    border-color:rgba(124,193,66,.6);
+    background:linear-gradient(145deg,rgba(124,193,66,.24),rgba(124,193,66,.07));
+    box-shadow:0 0 0 1px rgba(124,193,66,.16), 0 10px 28px rgba(0,0,0,.26), inset 0 1px 0 rgba(255,255,255,.07);
+  }
+  .freight-option.active::before{
+    content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+    background:linear-gradient(180deg,var(--amb-green-light),var(--amb-green-deep));
+  }
+  .freight-card-top{display:flex;align-items:center;gap:8px;}
+  .freight-icon-wrap{
+    width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;
+    background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.06);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
+  }
+  .freight-option.active .freight-icon-wrap{
+    background:rgba(124,193,66,.12);border-color:rgba(124,193,66,.22);
+  }
+  .freight-icon{width:25px;height:25px;display:block}
+  .freight-icon .truck-fill{fill:currentColor}
+  .freight-option .fo-title{font-family:"Oswald";font-size:12.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;display:block;line-height:1.05}
+  .freight-option .fo-sub{font-size:8.5px;line-height:1.15;margin-top:3px;text-transform:uppercase;letter-spacing:.08em;display:block;color:var(--muted)}
+  .freight-option.active .fo-sub{color:#d7e6c7}
+  .freight-option .fo-desc{display:none}
+  .freight-option.active .fo-desc{display:none}
+
+  .panel{
+    position:absolute;top:82px;left:18px;z-index:900;width:325px;max-width:calc(100vw - 36px);
+    background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border:1px solid var(--line);border-radius:15px;
+    box-shadow:0 24px 60px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.04);
+    overflow:hidden;transition:transform .35s cubic-bezier(.2,.8,.2,1),opacity .3s;
+  }
+  .panel.collapsed{transform:translateX(-118%);opacity:0;}
+  .panel-head{
+    padding:10px 14px 9px;border-bottom:1px solid var(--line);
+    background:
+      linear-gradient(180deg,rgba(124,193,66,.10),transparent 80%),
+      linear-gradient(90deg,rgba(124,193,66,.05),transparent 50%);
+    position:relative;
+  }
+  .panel-head::before{
+    content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+    background:linear-gradient(180deg,var(--amb-green),var(--amb-green-deep));
+  }
+  .panel-head .eyebrow{font-family:"Oswald";font-size:9px;letter-spacing:.2em;color:var(--amb-green);text-transform:uppercase;font-weight:600}
+  .panel-head .ph-title{font-family:"Oswald";font-size:15px;font-weight:600;letter-spacing:.05em;margin-top:3px;text-transform:uppercase}
+  .panel-head .ph-sub{font-size:10px;color:var(--muted);margin-top:5px;line-height:1.38}
+  .panel-head .ph-sub b{color:#cfd6de;font-weight:600}
+  .panel-body{padding:9px 12px 10px;overflow:visible;}
+  .panel-body::-webkit-scrollbar{width:7px}
+  .panel-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.13);border-radius:8px}
+
+  .sec-label{font-family:"Oswald";font-size:9px;letter-spacing:.16em;color:var(--muted);
+    text-transform:uppercase;font-weight:500;margin:2px 2px 6px;display:flex;align-items:center;gap:8px}
+  .sec-label::after{content:"";flex:1;height:1px;background:var(--line)}
+
+  .rate{
+    display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:10px;
+    background:rgba(255,255,255,.025);border:1px solid var(--line);margin-bottom:5px;
+    cursor:pointer;transition:.18s;
+  }
+  .rate:hover{background:rgba(255,255,255,.06);transform:translateX(2px)}
+  .rate.active{border-color:var(--amb-green);background:rgba(124,193,66,.1);
+    box-shadow:0 0 0 1px rgba(124,193,66,.15), 0 4px 14px rgba(124,193,66,.08);}
+  .swatch{width:11px;height:11px;border-radius:4px;flex:0 0 auto;box-shadow:0 0 0 3px rgba(255,255,255,.04)}
+  .rate .rng{flex:1}
+  .rate .rng .km{font-family:"Oswald";font-size:12.5px;font-weight:500;letter-spacing:.03em}
+  .rate .rng .zn{font-size:8.5px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-top:1px}
+  .rate .rng .meta{display:none}
+  .rate .price{font-family:"IBM Plex Mono";font-size:13px;font-weight:600;color:#fff;letter-spacing:-.02em}
+  .rate .price small{font-size:7.5px;color:var(--muted);display:block;text-align:right;font-family:"IBM Plex Sans";letter-spacing:.06em;text-transform:uppercase;font-weight:500}
+
+  .estimator{
+    margin-top:8px;padding:9px;border-radius:10px;
+    background:linear-gradient(160deg,rgba(124,193,66,.14),rgba(124,193,66,.03));
+    border:1px solid rgba(124,193,66,.28);
+  }
+  .estimator .est-hint{font-size:9.5px;color:var(--muted);line-height:1.35}
+  .estimator .est-hint b{color:var(--amb-green)}
+  .est-result{display:none}
+  .est-result.show{display:block}
+  .est-result .er-place{font-family:"Oswald";font-size:13px;font-weight:500;letter-spacing:.03em;text-transform:uppercase}
+  .est-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:7px}
+  .est-cell{background:rgba(0,0,0,.32);border:1px solid var(--line);border-radius:8px;padding:7px 8px}
+  .est-cell.wide{grid-column:1 / -1}
+  .est-cell .lbl{font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .est-cell .val{font-family:"IBM Plex Mono";font-size:15px;font-weight:600;margin-top:3px;letter-spacing:-.02em}
+  .est-cell .val.price{color:var(--amb-green)}
+  .est-reset{margin-top:7px;width:100%;padding:6px;border:1px solid var(--line);background:rgba(255,255,255,.04);
+    color:var(--muted);border-radius:9px;font-family:"Oswald";font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    cursor:pointer;transition:.18s}
+  .est-reset:hover{background:rgba(255,255,255,.09);color:#fff}
+
+  .disclaimer{font-size:8.5px;color:var(--muted);line-height:1.35;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+  .disclaimer b{color:#b9c1ca}
+
+  .panel-toggle{
+    position:absolute;top:92px;left:18px;z-index:901;
+    width:42px;height:42px;border-radius:11px;border:1px solid var(--line);
+    background:var(--panel);backdrop-filter:blur(12px);color:var(--amb-green);
+    display:none;align-items:center;justify-content:center;cursor:pointer;
+    box-shadow:0 10px 30px rgba(0,0,0,.55);
+  }
+  .panel.collapsed ~ .panel-toggle{display:flex}
+  .panel-toggle svg{width:20px;height:20px}
+  .collapse-btn{
+    position:absolute;top:11px;right:11px;width:26px;height:26px;border-radius:7px;
+    border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--muted);
+    cursor:pointer;font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center;transition:.18s;z-index:5}
+  .collapse-btn:hover{color:#fff;background:rgba(255,255,255,.12)}
+
+  .hq-marker{background:none;border:none}
+  .hq-dot{
+    position:relative;width:20px;height:20px;border-radius:50%;
+    background:var(--amb-green);border:3px solid #fff;
+    box-shadow:0 0 0 2px var(--amb-green),0 4px 14px rgba(0,0,0,.6);
+  }
+  .hq-dot::before{
+    content:"";position:absolute;inset:-9px;border-radius:50%;
+    border:2px solid var(--amb-green);opacity:.7;animation:pulse 2.4s ease-out infinite;
+  }
+  @keyframes pulse{0%{transform:scale(.5);opacity:.85}100%{transform:scale(2.6);opacity:0}}
+  .hq-label{
+    position:absolute;left:26px;top:-3px;white-space:nowrap;
+    font-family:"Oswald";font-weight:600;font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+    color:#0a0c0f;background:var(--amb-green);padding:3px 9px;border-radius:6px;
+    box-shadow:0 4px 14px rgba(0,0,0,.5);
+  }
+  .ring-label{background:none;border:none}
+  .ring-label .rl{
+    --ring-color:#7CC142;
+    font-family:"IBM Plex Mono";font-weight:700;font-size:12.5px;white-space:nowrap;
+    display:inline-flex;align-items:center;gap:7px;
+    background:var(--ring-color);
+    padding:6px 11px;border-radius:999px;transform:translateX(-50%);
+    border:2px solid rgba(255,255,255,.88);
+    box-shadow:0 8px 22px rgba(0,0,0,.62),0 0 0 3px rgba(0,0,0,.22);
+    letter-spacing:-.01em;line-height:1;
+  }
+  .ring-label .rl .km{opacity:.92}
+  .ring-label .rl .price{
+    padding:3px 7px;border-radius:999px;
+    background:rgba(255,255,255,.22);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.16);
+  }
+  .town-tip{
+    background:rgba(8,11,14,.95)!important;border:1px solid var(--line)!important;color:#eef2f6!important;
+    font-family:"IBM Plex Sans"!important;font-size:11px!important;font-weight:500!important;
+    border-radius:7px!important;box-shadow:0 6px 18px rgba(0,0,0,.5)!important;padding:4px 8px!important;
+    letter-spacing:.02em;
+  }
+  .town-tip::before{display:none!important}
+  .leaflet-popup-content-wrapper{
+    background:var(--panel-solid);color:var(--text);border-radius:13px;
+    border:1px solid var(--line);box-shadow:0 18px 50px rgba(0,0,0,.65)}
+  .leaflet-popup-tip{background:var(--panel-solid)}
+  .leaflet-popup-content{margin:13px 16px;line-height:1.5}
+  .pop h4{font-family:"Oswald";font-size:15px;letter-spacing:.05em;text-transform:uppercase;font-weight:600;margin-bottom:8px;color:#fff}
+  .pop .row{display:flex;justify-content:space-between;gap:18px;font-size:12px;padding:3px 0;color:var(--muted)}
+  .pop .row b{color:#fff;font-family:"IBM Plex Mono";font-weight:600}
+  .pop .band{display:inline-block;margin-top:9px;font-family:"Oswald";font-size:11px;letter-spacing:.1em;
+    text-transform:uppercase;padding:3px 10px;border-radius:20px;color:#06080a;font-weight:600}
+
+  .leaflet-control-attribution{background:rgba(4,6,8,.75)!important;color:#6a727c!important;font-size:9px!important}
+  .leaflet-control-attribution a{color:#8b95a1!important}
+  .leaflet-bar a{background:var(--panel-solid)!important;color:#dfe4ea!important;border-color:var(--line)!important}
+  .leaflet-bar a:hover{background:#1a1f26!important;color:var(--amb-green)!important}
+
+
+  /* compact left panel, designed to avoid scrolling on desktop */
+  .panel.compact-panel{width:325px}
+  .panel.compact-panel .panel-head{padding:13px 16px 11px}
+  .panel.compact-panel .ph-sub{font-size:11.25px;line-height:1.42}
+  .panel.compact-panel .panel-body{padding:11px 14px 12px;overflow:visible;max-height:none}
+  .panel.compact-panel .rate{padding:9px 11px;margin-bottom:6px;border-radius:11px}
+  .panel.compact-panel .rate .rng .km{font-size:14.25px}
+  .panel.compact-panel .rate .rng .zn{font-size:9.75px}
+  .panel.compact-panel .rate .rng .meta{display:none}
+  .panel.compact-panel .rate .price{font-size:15px}
+  .panel.compact-panel .rate .price small{font-size:8.5px}
+  .panel.compact-panel .estimator{margin-top:10px;padding:11px;border-radius:11px}
+  .panel.compact-panel .est-result .er-place{font-size:14.75px}
+  .panel.compact-panel .est-grid{gap:8px;margin-top:9px}
+  .panel.compact-panel .est-cell{padding:8px 10px;border-radius:9px}
+  .panel.compact-panel .est-cell .lbl{font-size:9px}
+  .panel.compact-panel .est-cell .val{font-size:17px}
+  .panel.compact-panel .est-reset{margin-top:8px;padding:7.5px}
+  .panel.compact-panel .disclaimer{font-size:9.5px;line-height:1.42;margin-top:9px;padding-top:9px}
+
+  @media (max-width:900px){
+    .freight-head{display:block}
+    .freight-head .fh-right{max-width:none;text-align:left;margin-top:5px}
+    .panel{top:82px}
+    .panel-toggle{top:92px}
+  }
+  @media (max-width:720px){
+    html,body{overflow:hidden}
+    .topbar{padding:9px 12px;gap:10px}
+    .titlewrap h1{font-size:13px;letter-spacing:.075em}
+    .titlewrap p{display:none}
+    .brandmark{width:34px;height:34px}
+
+    /* Mobile: compact freight selector so it does not block the map */
+    .freight-dock{
+      top:54px;bottom:auto;left:50%;width:calc(100vw - 24px);
+      transform:translateX(-50%);
+    }
+    .freight-shell{padding:4px;border-radius:13px;background:rgba(10,13,16,.84)}
+    .freight-head{display:none}
+    .freight-selector{grid-template-columns:1fr 1fr;gap:4px}
+    .freight-option{
+      min-height:38px;padding:6px 8px;border-radius:10px;
+      display:flex;align-items:center;justify-content:center;text-align:center;
+    }
+    .freight-card-top{justify-content:center;gap:6px}
+    .freight-icon-wrap{width:24px;height:24px;border-radius:8px}
+    .freight-icon{width:18px;height:18px}
+    .freight-option .fo-title{font-size:11.5px;line-height:1}
+    .freight-option .fo-sub{display:none}
+
+    /* Mobile: hide map zoom buttons and keep the panel readable */
+    .leaflet-control-zoom{display:none!important}
+
+    .panel{
+      top:auto;bottom:0;left:0;right:0;width:100%;max-width:100%;
+      border-radius:18px 18px 0 0;border-bottom:none;
+      max-height:43vh;
+    }
+    .panel.collapsed{transform:translateY(112%)}
+    .panel.compact-panel .panel-head{padding:11px 48px 10px 16px}
+    .panel-head .eyebrow{font-size:8.5px}
+    .panel-head .ph-title{font-size:15px;margin-top:3px}
+    .panel.compact-panel .ph-sub{font-size:11px;line-height:1.38;margin-top:5px}
+    .collapse-btn{top:10px;right:12px;width:30px;height:30px}
+    .panel.compact-panel .panel-body{
+      padding:11px 14px 14px;max-height:28vh;overflow-y:auto;
+    }
+    .sec-label{font-size:9px;margin:0 2px 8px}
+
+    /* Mobile: readable 2-column price selector, not tiny horizontal chips */
+    #rateCard{
+      display:grid;grid-template-columns:1fr 1fr;gap:8px;overflow:visible;padding-bottom:0;
+    }
+    #rateCard::-webkit-scrollbar{display:none}
+    .panel.compact-panel .rate{
+      width:auto;min-height:58px;
+      padding:9px 10px;margin-bottom:0;border-radius:12px;gap:8px;
+    }
+    .rate:hover{transform:none}
+    .swatch{width:10px;height:10px;border-radius:4px}
+    .panel.compact-panel .rate .rng .km{font-size:13px;line-height:1.1}
+    .panel.compact-panel .rate .rng .zn{display:block;font-size:8.3px;line-height:1.15;margin-top:3px}
+    .panel.compact-panel .rate .price{font-size:13.5px}
+    .panel.compact-panel .rate .price small{display:none}
+
+    .panel.compact-panel .estimator{margin-top:10px;padding:10px;border-radius:12px}
+    .estimator .est-hint{font-size:10px;line-height:1.35}
+    .panel.compact-panel .est-result .er-place{font-size:13.5px}
+    .panel.compact-panel .est-grid{grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:8px}
+    .panel.compact-panel .est-cell{padding:8px 8px;border-radius:9px}
+    .panel.compact-panel .est-cell .lbl{font-size:8px}
+    .panel.compact-panel .est-cell .val{font-size:13px;white-space:nowrap}
+    .panel.compact-panel .est-reset{margin-top:8px;padding:7px;font-size:10.5px}
+    .panel.compact-panel .disclaimer{display:none}
+
+    .panel-toggle{top:auto;bottom:14px;left:14px;width:42px;height:42px}
+    .panel.collapsed ~ .panel-toggle{display:flex}
+    .leaflet-bottom.leaflet-right{bottom:12px}
+    .ring-label .rl{font-size:10px;padding:5px 8px;gap:5px}
+    .town-tip{font-size:10px!important}
+  }
+
+  @media (max-width:420px){
+    .freight-dock{top:50px;width:calc(100vw - 18px)}
+    .freight-option{min-height:34px;padding:5px 6px}
+    .freight-icon-wrap{display:none}
+    .freight-option .fo-title{font-size:11px}
+    .panel{max-height:44vh}
+    .panel.compact-panel .panel-head{padding:10px 46px 9px 14px}
+    .panel.compact-panel .ph-sub{font-size:10.5px}
+    .panel.compact-panel .panel-body{max-height:30vh;padding:10px 12px 13px}
+    #rateCard{gap:7px}
+    .panel.compact-panel .rate{min-height:56px;padding:8px 9px}
+    .panel.compact-panel .rate .rng .km{font-size:12.5px}
+    .panel.compact-panel .rate .rng .zn{font-size:8px}
+    .panel.compact-panel .rate .price{font-size:12.5px}
+    .panel.compact-panel .est-grid{grid-template-columns:1fr;gap:6px}
+    .panel.compact-panel .est-cell{padding:8px 9px}
+    .panel.compact-panel .est-cell .val{font-size:13px}
+  }
+
+
+  /* Mobile v3: full-width, no-scroll bottom panel */
+  @media (max-width:720px){
+    .leaflet-control-zoom{display:none!important}
+
+    .panel{
+      top:auto;left:0;right:0;bottom:0;width:100%;max-width:100%;
+      border-radius:18px 18px 0 0;border-left:none;border-right:none;border-bottom:none;
+      max-height:none;height:auto;overflow:hidden;
+    }
+    .panel.compact-panel{width:100%}
+    .panel.collapsed{transform:translateY(112%)}
+
+    .panel.compact-panel .panel-head{
+      padding:10px 48px 8px 14px;
+      display:grid;grid-template-columns:auto 1fr;column-gap:10px;align-items:start;
+    }
+    .panel-head .eyebrow{font-size:8px;line-height:1;grid-column:1 / 2;margin-top:2px}
+    .panel-head .ph-title{font-size:14px;line-height:1.05;margin-top:0;grid-column:1 / 2;white-space:nowrap}
+    .panel.compact-panel .ph-sub{
+      font-size:10.5px;line-height:1.28;margin-top:0;grid-column:2 / 3;color:#aeb7c1;
+    }
+    .collapse-btn{top:9px;right:12px;width:29px;height:29px}
+
+    .panel.compact-panel .panel-body{
+      padding:9px 12px 12px;max-height:none;overflow:hidden;
+      display:grid;grid-template-columns:1fr;gap:8px;
+    }
+    .sec-label{display:none}
+
+    #rateCard{
+      display:grid;grid-template-columns:repeat(4,1fr);gap:6px;overflow:visible;padding:0;
+    }
+    .panel.compact-panel .rate{
+      width:auto;min-height:0;margin:0;padding:8px 6px;border-radius:11px;gap:0;
+      display:flex;flex-direction:column;align-items:flex-start;justify-content:center;
+    }
+    .rate:hover{transform:none}
+    .swatch{width:100%;height:3px;border-radius:999px;margin:0 0 6px;box-shadow:none}
+    .panel.compact-panel .rate .rng{width:100%}
+    .panel.compact-panel .rate .rng .km{font-size:12px;line-height:1.05;white-space:nowrap}
+    .panel.compact-panel .rate .rng .zn{display:none}
+    .panel.compact-panel .rate .price{font-size:13px;line-height:1.1;margin-top:4px;color:#fff}
+    .panel.compact-panel .rate .price small{display:none}
+
+    .panel.compact-panel .estimator{margin-top:0;padding:9px;border-radius:12px}
+    .estimator .est-hint{font-size:10.5px;line-height:1.35;text-align:center}
+    .panel.compact-panel .est-result .er-place{font-size:12.5px;line-height:1.1;text-align:center}
+    .panel.compact-panel .est-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:7px}
+    .panel.compact-panel .est-cell{padding:7px 6px;border-radius:9px;text-align:center}
+    .panel.compact-panel .est-cell .lbl{font-size:7.5px;line-height:1;letter-spacing:.08em}
+    .panel.compact-panel .est-cell .val{font-size:12px;line-height:1.1;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .panel.compact-panel .est-reset{margin-top:7px;padding:7px;font-size:10px;border-radius:9px}
+    .panel.compact-panel .disclaimer{display:none}
+
+    .panel-toggle{top:auto;bottom:14px;left:14px;width:42px;height:42px}
+    .panel.collapsed ~ .panel-toggle{display:flex}
+    .leaflet-bottom.leaflet-right{bottom:12px}
+  }
+
+  @media (max-width:420px){
+    .panel.compact-panel .panel-head{padding:9px 46px 7px 12px;column-gap:8px}
+    .panel-head .eyebrow{font-size:7.5px}
+    .panel-head .ph-title{font-size:13px}
+    .panel.compact-panel .ph-sub{font-size:9.8px;line-height:1.22}
+    .panel.compact-panel .panel-body{padding:8px 10px 10px;gap:7px}
+    #rateCard{gap:5px}
+    .panel.compact-panel .rate{padding:7px 5px;border-radius:10px}
+    .panel.compact-panel .rate .rng .km{font-size:11px}
+    .panel.compact-panel .rate .price{font-size:11.5px;margin-top:3px}
+    .panel.compact-panel .estimator{padding:8px}
+    .estimator .est-hint{font-size:10px}
+    .panel.compact-panel .est-result .er-place{font-size:12px}
+    .panel.compact-panel .est-grid{grid-template-columns:repeat(3,1fr);gap:5px;margin-top:6px}
+    .panel.compact-panel .est-cell{padding:6px 4px}
+    .panel.compact-panel .est-cell .lbl{font-size:7px}
+    .panel.compact-panel .est-cell .val{font-size:11px}
+  }
+
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="topbar">
+  <svg class="brandmark" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="Affordable Modular Buildings">
+    <defs>
+      <linearGradient id="ambGrey" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#9a9a9a"/>
+        <stop offset="1" stop-color="#3d3d3d"/>
+      </linearGradient>
+      <linearGradient id="ambGreen" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#9BD862"/>
+        <stop offset="1" stop-color="#5FA32F"/>
+      </linearGradient>
+    </defs>
+    <clipPath id="hex">
+      <polygon points="50,6 88,28 88,72 50,94 12,72 12,28"/>
+    </clipPath>
+    <g clip-path="url(#hex)">
+      <rect x="0" y="50" width="100" height="50" fill="url(#ambGrey)"/>
+      <path d="M50 14 L86 46 L86 52 L50 24 L14 52 L14 46 Z" fill="url(#ambGreen)"/>
+      <rect x="42" y="54" width="16" height="16" fill="#0a0c0f"/>
+      <rect x="42" y="54" width="16" height="16" fill="none" stroke="#9a9a9a" stroke-width="1.2"/>
+      <line x1="50" y1="54" x2="50" y2="70" stroke="#9a9a9a" stroke-width="1.2"/>
+      <line x1="42" y1="62" x2="58" y2="62" stroke="#9a9a9a" stroke-width="1.2"/>
+    </g>
+    <polygon points="50,6 88,28 88,72 50,94 12,72 12,28" fill="none" stroke="#0a0c0f" stroke-width="2"/>
+  </svg>
+
+  <div class="titlewrap">
+    <h1><span class="grn">AFFORDABLE</span> <span class="gry">MODULAR BUILDINGS</span></h1>
+    <p>SE QLD Delivery Network &nbsp;·&nbsp; Portable Building Freight &nbsp;·&nbsp; Tilt Tray &amp; Flat Bed</p>
+  </div>
+</div>
+
+<div class="freight-dock">
+  <div class="freight-shell">
+    <div class="freight-head">
+      <div class="fh-left">
+        <small>Freight selector</small>
+        <strong>Choose building freight type</strong>
+      </div>
+      <div class="fh-right">Select one mode to update ring labels, town pricing, the delivery rate card, and the estimator across the map.</div>
+    </div>
+    <div class="freight-selector" id="freightSelector" role="group" aria-label="Select freight type">
+      <button class="freight-option active" type="button" data-freight="tiltTray" aria-pressed="true">
+        <div class="freight-card-top">
+          <div class="freight-icon-wrap" aria-hidden="true">
+            <svg class="freight-icon" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+              <g class="truck-fill" fill="currentColor">
+                <rect x="8" y="34" width="24" height="8" rx="1.5"></rect>
+                <rect x="10" y="22" width="12" height="12" rx="1.5"></rect>
+                <polygon points="33,34 47,14 51,16 44,34"></polygon>
+                <polygon points="31,38 56,38 56,42 31,42"></polygon>
+                <polygon points="47,14 56,14 56,18 49,18"></polygon>
+                <circle cx="18" cy="46" r="5"></circle>
+                <circle cx="46" cy="46" r="5"></circle>
+              </g>
+            </svg>
+          </div>
+          <div>
+            <span class="fo-title">Tilt Tray</span>
+            <span class="fo-sub">For 6x3m portable buildings</span>
+          </div>
+        </div>
+      </button>
+      <button class="freight-option" type="button" data-freight="flatBed" aria-pressed="false">
+        <div class="freight-card-top">
+          <div class="freight-icon-wrap" aria-hidden="true">
+            <svg class="freight-icon" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+              <g class="truck-fill" fill="currentColor">
+                <rect x="12" y="30" width="36" height="6" rx="1.5"></rect>
+                <rect x="45" y="24" width="10" height="12" rx="1.5"></rect>
+                <rect x="49" y="27" width="4" height="4" rx="1"></rect>
+                <rect x="48" y="36" width="6" height="7" rx="1"></rect>
+                <circle cx="22" cy="44" r="5"></circle>
+                <circle cx="36" cy="44" r="5"></circle>
+                <circle cx="50" cy="44" r="5"></circle>
+                <rect x="8" y="31" width="6" height="5" rx="1.5"></rect>
+              </g>
+            </svg>
+          </div>
+          <div>
+            <span class="fo-title">Flat Bed</span>
+            <span class="fo-sub">For 9x3m / 12x3m portable buildings</span>
+          </div>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="panel compact-panel" id="panel">
+  <div class="panel-head">
+    <button class="collapse-btn" id="collapseBtn" title="Hide panel">‹</button>
+    <div class="eyebrow">Factory Base · HQ</div>
+    <div class="ph-title">AMB Ipswich</div>
+    <div class="ph-sub" id="freightIntro"><b>Tilt Tray</b> delivery for <b>6x3m portable buildings</b>, priced by radius from AMB Ipswich.</div>
+  </div>
+  <div class="panel-body">
+    <div class="sec-label">Delivery Rate Card</div>
+    <div id="rateCard"></div>
+
+    <div class="estimator">
+      <div class="est-hint" id="estHint"><b>Tap anywhere on the map</b> to drop a destination pin and get an instant distance + zone price.</div>
+      <div class="est-result" id="estResult">
+        <div class="er-place" id="erPlace">Destination</div>
+        <div class="est-grid">
+          <div class="est-cell"><div class="lbl">Freight</div><div class="val" id="erFreight">Tilt Tray</div></div>
+          <div class="est-cell"><div class="lbl">Distance</div><div class="val" id="erDist">-</div></div>
+          <div class="est-cell"><div class="lbl">Delivery</div><div class="val price" id="erPrice">-</div></div>
+        </div>
+        <button class="est-reset" id="estReset">Clear pin</button>
+      </div>
+    </div>
+
+    <div class="disclaimer">
+      <b>Note:</b> radii are straight-line from HQ. Actual road distance runs longer, so quote on the next band up near a boundary. Rates are <b>editable placeholders</b>, edit <b>CONFIG.freightTypes</b> in the file to set live AMB delivery numbers. Beyond 200 km is price-on-application.
+    </div>
+  </div>
+</div>
+
+<button class="panel-toggle" id="panelToggle" title="Show panel">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+</button>
+
+<script>
+const CONFIG = {
+  hq: { lat: -27.6146, lng: 152.7608, name: "AMB Factory · Ipswich" },
+  serviceLimitKm: 250,
+  poaLabel: "P.O.A.",
+  freightTypes: {
+    tiltTray: {
+      label: "Tilt Tray",
+      appliesTo: "6x3m portable buildings",
+      shortLabel: "For 6x3m",
+      description: "Best suited for standard 6x3m portable buildings.",
+      summary: "Use Tilt Tray for 6x3m portable buildings. All ring labels and delivery estimates show the current live flat-rate pricing.",
+      prices: [
+        { km: 50,  price: 690,  zone: "Zone A · Metro",      color: "#7CC142" },
+        { km: 100, price: 1150, zone: "Zone B · Inner Reg.", color: "#F2C249" },
+        { km: 150, price: 1690, zone: "Zone C · Regional",   color: "#F08A2E" },
+        { km: 200, price: 2250, zone: "Zone D · Far Reg.",   color: "#DB4C3F" }
+      ]
+    },
+    flatBed: {
+      label: "Flat Bed",
+      appliesTo: "9x3m and 12x3m portable buildings",
+      shortLabel: "For 9x3m / 12x3m",
+      description: "Used for larger portable buildings requiring flat bed transport.",
+      summary: "Use Flat Bed for larger 9x3m and 12x3m portable buildings. Delivery zones stay the same, and prices are currently shown as TBA placeholders.",
+      prices: [
+        { km: 50,  price: "TBA", zone: "Zone A · Metro",      color: "#7CC142" },
+        { km: 100, price: "TBA", zone: "Zone B · Inner Reg.", color: "#F2C249" },
+        { km: 150, price: "TBA", zone: "Zone C · Regional",   color: "#F08A2E" },
+        { km: 200, price: "TBA", zone: "Zone D · Far Reg.",   color: "#DB4C3F" }
+      ]
+    }
+  }
+};
+
+const TOWNS = [
+  ["Brisbane CBD", -27.4698, 153.0251],
+  ["Springfield",  -27.6900, 152.9200],
+  ["Logan Central",-27.6392, 153.1086],
+  ["Beenleigh",    -27.7136, 153.2017],
+  ["Cleveland",    -27.5260, 153.2660],
+  ["Redcliffe",    -27.2300, 153.1100],
+  ["Caboolture",   -27.0833, 152.9500],
+  ["Esk",          -27.2386, 152.4231],
+  ["Gatton",       -27.5556, 152.2778],
+  ["Boonah",       -27.9967, 152.6810],
+  ["Beaudesert",   -27.9900, 153.0000],
+  ["Southport",    -27.9676, 153.4143],
+  ["Surfers Paradise",-28.0023,153.4145],
+  ["Coolangatta",  -28.1670, 153.5340],
+  ["Tweed Heads",  -28.1770, 153.5440],
+  ["Toowoomba",    -27.5598, 151.9507],
+  ["Caloundra",    -26.8030, 153.1320],
+  ["Maroochydore", -26.6580, 153.0920],
+  ["Noosa Heads",  -26.3980, 153.0900],
+  ["Gympie",       -26.1900, 152.6650],
+  ["Kingaroy",     -26.5410, 151.8390],
+  ["Dalby",        -27.1830, 151.2620],
+  ["Warwick",      -28.2190, 152.0340],
+  ["Stanthorpe",   -28.6560, 151.9350],
+  ["Goondiwindi",  -28.5470, 150.3090],
+  ["Murwillumbah", -28.3270, 153.3920],
+  ["Byron Bay",    -28.6430, 153.6120],
+  ["Lismore",      -28.8140, 153.2770],
+  ["Casino",       -28.8600, 153.0500],
+  ["Tenterfield",  -29.0490, 152.0190],
+  ["Maryborough",  -25.5400, 152.7010],
+  ["Hervey Bay",   -25.2900, 152.8400]
+];
+
+let currentFreightKey = "tiltTray";
+let activeKm = -1;
+let lastDestination = null;
+let pin = null, line = null;
+let ringLabelLayer = null;
+let hqMarker = null;
+const townLayers = [];
+
+const fmt = n => typeof n === "number" ? "$" + n.toLocaleString("en-AU") : n;
+const selectedFreight = () => CONFIG.freightTypes[currentFreightKey];
+const selectedRings = () => selectedFreight().prices;
+
+function labelTextColor(hex){
+  const clean = hex.replace("#", "");
+  const r = parseInt(clean.substring(0,2), 16),
+        g = parseInt(clean.substring(2,4), 16),
+        b = parseInt(clean.substring(4,6), 16);
+  const luminance = (0.299*r + 0.587*g + 0.114*b) / 255;
+  return luminance > 0.56 ? "#061007" : "#ffffff";
+}
+function haversine(a, b, c, d){
+  const R=6371, t=x=>x*Math.PI/180;
+  const dLat=t(c-a), dLng=t(d-b);
+  const x=Math.sin(dLat/2)**2 + Math.cos(t(a))*Math.cos(t(c))*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+}
+function bandFor(km){
+  for(const r of selectedRings()){ if(km <= r.km) return r; }
+  return null;
+}
+function bandForStatic(km){
+  for(const r of CONFIG.freightTypes.tiltTray.prices){ if(km <= r.km) return r; }
+  return null;
+}
+function priceForBand(b){ return b ? fmt(b.price) : CONFIG.poaLabel; }
+function zoneForBand(b){ return b ? b.zone : "Beyond 200 km · quote"; }
+
+const map = L.map('map',{ zoomControl:true, zoomSnap:.25, attributionControl:true })
+  .setView([CONFIG.hq.lat+0.15, CONFIG.hq.lng+0.35], 8);
+map.zoomControl.setPosition('bottomright');
+
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  { maxZoom:18, attribution:'Imagery © Esri, Maxar, Earthstar Geographics' }).addTo(map);
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}',
+  { maxZoom:18, opacity:.9 }).addTo(map);
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+  { maxZoom:18, opacity:.95 }).addTo(map);
+
+const HQ = [CONFIG.hq.lat, CONFIG.hq.lng];
+
+[...CONFIG.freightTypes.tiltTray.prices].reverse().forEach(r=>{
+  L.circle(HQ,{
+    radius:r.km*1000, color:r.color, weight:2.2, opacity:.95,
+    fillColor:r.color, fillOpacity:.06
+  }).addTo(map);
+});
+L.circle(HQ,{ radius:CONFIG.serviceLimitKm*1000, color:"#A8B5C0", weight:1.6,
+  opacity:.85, dashArray:"6 7", fill:false }).addTo(map);
+
+function renderRingLabels(){
+  if(ringLabelLayer) map.removeLayer(ringLabelLayer);
+  ringLabelLayer = L.layerGroup().addTo(map);
+  selectedRings().forEach(r=>{
+    const lat = CONFIG.hq.lat + (r.km/111.32);
+    L.marker([lat, CONFIG.hq.lng],{
+      icon:L.divIcon({className:'ring-label',
+        html:`<div class="rl" style="--ring-color:${r.color};color:${labelTextColor(r.color)}"><span class="km">${r.km}km</span><span class="price">${fmt(r.price)}</span></div>`,
+        iconSize:[0,0]}), interactive:false
+    }).addTo(ringLabelLayer);
+  });
+  L.marker([CONFIG.hq.lat + (CONFIG.serviceLimitKm/111.32), CONFIG.hq.lng],{
+    icon:L.divIcon({className:'ring-label',
+      html:`<div class="rl" style="--ring-color:#A8B5C0;color:${labelTextColor('#A8B5C0')}"><span class="km">${CONFIG.serviceLimitKm}km</span><span class="price">service limit</span></div>`,
+      iconSize:[0,0]}), interactive:false
+  }).addTo(ringLabelLayer);
+}
+
+function updateHqPopup(){
+  const f = selectedFreight();
+  hqMarker.bindPopup(
+    `<div class="pop"><h4>AMB Factory · Ipswich</h4>
+     <div class="row"><span>Dispatch origin</span><b>0 km</b></div>
+     <div class="row"><span>Building size</span><b>${f.appliesTo}</b></div>
+     <div class="row"><span>Freight type</span><b>${f.label}</b></div></div>`);
+}
+hqMarker = L.marker(HQ,{
+  icon:L.divIcon({className:'hq-marker',
+    html:`<div class="hq-dot"></div><div class="hq-label">AMB Ipswich</div>`, iconSize:[20,20], iconAnchor:[10,10]}),
+  zIndexOffset:1000
+}).addTo(map);
+updateHqPopup();
+
+function popupHtmlForTown(name, km, b){
+  const f = selectedFreight();
+  const col = b ? b.color : "#A8B5C0";
+  const priceTxt = priceForBand(b);
+  return `<div class="pop"><h4>${name}</h4>
+    <div class="row"><span>From AMB Ipswich</span><b>${km.toFixed(0)} km</b></div>
+    <div class="row"><span>Freight type</span><b>${f.label}</b></div>
+    <div class="row"><span>Building size</span><b>${f.appliesTo}</b></div>
+    <div class="row"><span>Delivery</span><b>${priceTxt}</b></div>
+    <span class="band" style="background:${col}">${zoneForBand(b)}</span></div>`;
+}
+function refreshTownLabels(){
+  townLayers.forEach(item=>{
+    const b = bandFor(item.km);
+    const priceTxt = priceForBand(b);
+    item.layer.unbindTooltip();
+    item.layer.bindTooltip(`${item.name} · ${priceTxt}`,{className:'town-tip',direction:'top',offset:[0,-6]});
+    item.layer.bindPopup(popupHtmlForTown(item.name, item.km, b));
+  });
+}
+TOWNS.forEach(([name,lat,lng])=>{
+  const km = haversine(CONFIG.hq.lat,CONFIG.hq.lng,lat,lng);
+  const staticBand = bandForStatic(km);
+  const col = staticBand ? staticBand.color : "#A8B5C0";
+  const layer = L.circleMarker([lat,lng],{
+    radius:5, color:"#fff", weight:1.4, fillColor:col, fillOpacity:1, opacity:.9
+  }).addTo(map);
+  townLayers.push({name, km, layer});
+});
+
+const rateCard = document.getElementById('rateCard'),
+      freightIntro = document.getElementById('freightIntro'),
+      estResult = document.getElementById('estResult'),
+      estHint = document.getElementById('estHint'),
+      erPlace = document.getElementById('erPlace'),
+      erFreight = document.getElementById('erFreight'),
+      erDist = document.getElementById('erDist'),
+      erPrice = document.getElementById('erPrice');
+
+function updateFreightCopy(){
+  const f = selectedFreight();
+  freightIntro.innerHTML = `${f.label} delivery for <b>${f.appliesTo}</b>, priced by radius from AMB Ipswich.`;
+  document.querySelectorAll('.freight-option').forEach(btn=>{
+    const active = btn.dataset.freight === currentFreightKey;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    btn.style.color = active ? '#ffffff' : '#d2d9e1';
+  });
+}
+
+function buildRateCard(kmValue){
+  const f = selectedFreight();
+  const rings = selectedRings();
+  rateCard.innerHTML="";
+  rings.forEach((r,i)=>{
+    const prev = i===0 ? 0 : rings[i-1].km;
+    const isActive = kmValue>prev && kmValue<=r.km;
+    const el=document.createElement('div');
+    el.className='rate'+(isActive?' active':'');
+    el.innerHTML=`<span class="swatch" style="background:${r.color}"></span>
+      <div class="rng"><div class="km">${prev}-${r.km} km</div><div class="zn">${r.zone}</div><div class="meta">${f.label} · ${f.shortLabel}</div></div>
+      <div class="price">${fmt(r.price)}<small>flat rate</small></div>`;
+    el.onclick=()=>{ const t=CONFIG.hq.lat+(r.km/111.32)/1.6;
+      map.flyTo([t,CONFIG.hq.lng], r.km>150?7.5:(r.km>80?8:8.6),{duration:.9}); };
+    rateCard.appendChild(el);
+  });
+}
+
+function updateEstimatorForCurrentFreight(){
+  if(!lastDestination) return;
+  const km = lastDestination.km;
+  const b = bandFor(km);
+  const col = b ? b.color : "#A8B5C0";
+  const priceTxt = priceForBand(b);
+  if(line) line.setStyle({color:col});
+  if(pin) pin.setStyle({fillColor:col});
+  estHint.style.display="none";
+  estResult.classList.add('show');
+  erPlace.textContent = b ? b.zone : "Outside service zone";
+  erFreight.textContent = selectedFreight().label;
+  erDist.textContent = km.toFixed(0)+" km";
+  erPrice.textContent = priceTxt;
+  erPrice.style.color = col;
+  activeKm = km;
+  buildRateCard(activeKm);
+}
+
+function refreshAll(){
+  updateFreightCopy();
+  renderRingLabels();
+  refreshTownLabels();
+  updateHqPopup();
+  updateEstimatorForCurrentFreight();
+  buildRateCard(activeKm);
+}
+
+document.getElementById('freightSelector').addEventListener('click', e=>{
+  const btn = e.target.closest('.freight-option');
+  if(!btn || btn.dataset.freight === currentFreightKey) return;
+  currentFreightKey = btn.dataset.freight;
+  refreshAll();
+});
+
+map.on('click',e=>{
+  const {lat,lng}=e.latlng;
+  const km=haversine(CONFIG.hq.lat,CONFIG.hq.lng,lat,lng);
+  const b=bandFor(km);
+  const col=b?b.color:"#A8B5C0";
+
+  if(pin) map.removeLayer(pin);
+  if(line) map.removeLayer(line);
+  line=L.polyline([HQ,[lat,lng]],{color:col,weight:2,dashArray:"4 6",opacity:.9}).addTo(map);
+  pin=L.circleMarker([lat,lng],{radius:7,color:"#fff",weight:2,fillColor:col,fillOpacity:1}).addTo(map);
+  lastDestination = {lat, lng, km};
+  updateEstimatorForCurrentFreight();
+});
+document.getElementById('estReset').onclick=()=>{
+  if(pin)map.removeLayer(pin); if(line)map.removeLayer(line); pin=line=null;
+  lastDestination = null;
+  activeKm = -1;
+  estResult.classList.remove('show'); estHint.style.display="block"; buildRateCard(activeKm);
+};
+
+const panel=document.getElementById('panel');
+document.getElementById('collapseBtn').onclick=()=>panel.classList.add('collapsed');
+document.getElementById('panelToggle').onclick=()=>panel.classList.remove('collapsed');
+
+refreshAll();
+const fitCircle=L.circle(HQ,{radius:CONFIG.serviceLimitKm*1000});
+map.fitBounds(fitCircle.getBounds(),{padding:[40,40]});
+</script>
+</body>
+</html>
